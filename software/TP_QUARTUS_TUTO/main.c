@@ -111,7 +111,7 @@ int main(void) {
 
 		if (SW_value & 0b0000001000) // sw 3
 		{
-			launch_alarm();
+			//launch_alarm();
 		}
 
 		time_format = (SW_value >> 4) & 0b00000001;
@@ -539,6 +539,11 @@ alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count)
 	alt_alarm_start(&user_alarm, alt_ticks_per_second()/MELODY_FREQ, user_alarm_callback, alt_ticks_per_second()/MELODY_FREQ); 
     for(size_t i = 0; i < melody_count; i++)
     {
+		get_key();
+		if(KEY_value)
+		{
+			break;
+		}
 		melody_freq = melody[i];
 		user_alarm_flag = 0; // reset the user_alarm flag
 		while(!user_alarm_flag)
