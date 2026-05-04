@@ -53,9 +53,9 @@
 #define HEX_9		0b0010000
 #define NEGATIVE	0b0111111
 #define NO_NUM		0b1111111
-#define SEG_A		0b1000000
-#define SEG_P		0b0001000
-#define SEG_M		0b1000000
+#define SEG_A		0b0001000
+#define SEG_P		0b0001100
+#define SEG_M		0b1001000
 alt_u8 convertion_array[10] = {HEX_0, HEX_1, HEX_2, HEX_3, HEX_4, HEX_5, HEX_6, HEX_7, HEX_8, HEX_9};
 
 /**
@@ -120,6 +120,7 @@ alt_u8 hp_output_state = 0;
 alt_u8 select_melody = 0;
 alt_u8 delay_alarm_flag = 0;
 alt_u8 launch_alarm_flag = 0;
+alt_u8 time_format = FORMAT_24H;
 
 /*** Function Prototypes ***/
 alt_u32 internal_alarm_callback (void* context);

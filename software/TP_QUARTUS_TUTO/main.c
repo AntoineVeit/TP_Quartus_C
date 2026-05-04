@@ -114,6 +114,7 @@ int main(void) {
 			launch_alarm();
 		}
 
+		time_format = (SW_value >> 4) & 0b00000001;
 		select_melody = (SW_value >> 8) & 0b00000011;
 		
 		delay(200);
@@ -140,7 +141,7 @@ alt_u32 internal_alarm_callback (void* context)
 	}
 	if (alarm_set)
 	{
-		update_display(alarm_time, FORMAT_12H);
+		update_display(alarm_time, time_format);
 	}
 	else
 	{
@@ -240,21 +241,22 @@ alt_u8 set_alarm_time(void)
 
 		case KEY_0:
 			alarm_time = alarm_time + 60; // add 1 hour
+			delay(300); //debouncing
 			break;
 
 		case KEY_1:
 			alarm_time = alarm_time + 3600; // add 1 minute
+			delay(300); //debouncing
 			break;
 
 		case KEY_0_1:
 			alarm_time = alarm_time - 60; // remove 1 minute
+			delay(300); //debouncing
 			break;
 
 		default:
 			break;
 		}
-		printf("\nalarm_time = %d", alarm_time);
-		delay(200); //debouncing
 		if(alarm_time >= 86400)
 		{
 			alarm_time = 0;
@@ -284,21 +286,22 @@ alt_u8 set_internal_time(void)
 
 		case KEY_0:
 			internal_time = internal_time + 60; // add 1 hour
+			delay(300); //debouncing
 			break;
 
 		case KEY_1:
 			internal_time = internal_time + 3600; // add 1 minute
+			delay(300); //debouncing
 			break;
 
 		case KEY_0_1:
 			internal_time = internal_time - 60; // remove 1 minute
+			delay(300); //debouncing
 			break;
 
 		default:
 			break;
 		}
-		printf("\n internal_time = %d", internal_time);
-		delay(300); //debouncing
 		if(internal_time >= 86400)
 		{
 			internal_time = 0;
@@ -388,7 +391,7 @@ alt_u8 launch_alarm(void)
  */
 alt_u8 display_current_time(void)
 {
-	update_display(internal_time, FORMAT_12H);
+	update_display(internal_time, time_format);
 #ifdef INFO
 	printf("\n interal time = %d", (int)internal_time);
 	printf("\n%d - %d - %d", (int)display.hours, (int)display.minutes, (int)display.seconds);
@@ -458,22 +461,46 @@ alt_u8 bin_2_bcd(alt_u8 bin, alt_u8 *decimal, alt_u8 *unit)
 alt_u8 update_display(alt_u32 time, alt_u8 format)
 {
 	time_2_hhmmss(time, &display.hours, &display.minutes, &display.seconds);
-	bin_2_bcd(display.seconds, &display.bcd_sec_1, &display.bcd_sec_0);
-	bin_2_bcd(display.minutes, &display.bcd_min_1, &display.bcd_min_0);
-	if (format)
+	if(format)
 	{
+		/* MERIDIAN */
+		HEX_bits = SEG_M;
+		HEX_bits = HEX_bits << 8;
 		if(display.hours > 11)
 		{
 			display.hours = display.hours - 12;
+			HEX_bits = HEX_bits + SEG_P;
 		}
+		else
+		{
+			HEX_bits = HEX_bits + SEG_A;
+		}
+		IOWR_ALTERA_AVALON_PIO_DATA(HEX5_HEX4_ptr, HEX_bits);
 	}
-	
+	else
+	{
+		bin_2_bcd(display.seconds, &display.bcd_sec_1, &display.bcd_sec_0);
+	}
+
+	bin_2_bcd(display.minutes, &display.bcd_min_1, &display.bcd_min_0);
 	bin_2_bcd(display.hours, &display.bcd_hou_1, &display.bcd_hou_0);
-#ifdef DEBUG
-	printf("\nupdate display ");
-	printf("%d", display.bcd_sec_0);
-#endif
+
 	if(format)
+	{
+
+		/* HOURS */
+		HEX_bits = convertion_array[abs(display.bcd_hou_1)];
+		HEX_bits = HEX_bits << 8;
+		HEX_bits = HEX_bits + convertion_array[abs(display.bcd_hou_0)];
+		HEX_bits = HEX_bits << 8;
+
+		/* MINUTES */
+		HEX_bits = HEX_bits + convertion_array[abs(display.bcd_min_1)];
+		HEX_bits = HEX_bits << 8;
+		HEX_bits = HEX_bits + convertion_array[abs(display.bcd_min_0)];
+		IOWR_ALTERA_AVALON_PIO_DATA(HEX3_HEX0_ptr, HEX_bits);
+	}
+	else
 	{
 		/* HOURS */
 		HEX_bits = convertion_array[abs(display.bcd_hou_0)];
@@ -493,27 +520,6 @@ alt_u8 update_display(alt_u32 time, alt_u8 format)
 		HEX_bits = HEX_bits + convertion_array[abs(display.bcd_sec_0)];
 		IOWR_ALTERA_AVALON_PIO_DATA(HEX3_HEX0_ptr, HEX_bits);
 	}
-	else
-	{
-		/* MERRIDIAN */
-		HEX_bits = SEG_A;
-		HEX_bits = HEX_bits << 8;
-		HEX_bits = HEX_bits + SEG_M;
-		IOWR_ALTERA_AVALON_PIO_DATA(HEX5_HEX4_ptr, HEX_bits);
-
-		/* HOUR */
-		HEX_bits = convertion_array[abs(display.bcd_hou_0)];
-		HEX_bits = HEX_bits << 8;
-		HEX_bits = HEX_bits + convertion_array[abs(display.bcd_hou_1)];
-		HEX_bits = HEX_bits << 8;
-
-		/* MINUTES */
-		HEX_bits = HEX_bits + convertion_array[abs(display.bcd_min_1)];
-		HEX_bits = HEX_bits << 8;
-		HEX_bits = HEX_bits + convertion_array[abs(display.bcd_min_0)];
-		IOWR_ALTERA_AVALON_PIO_DATA(HEX3_HEX0_ptr, HEX_bits);
-	}
-	
 	return 0;
 }
 
