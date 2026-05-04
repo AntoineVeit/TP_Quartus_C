@@ -38,7 +38,7 @@
 
 // #define DEBUG
 //#define INFO
-//#define FASTCLOCK
+#define FASTCLOCK
 #ifdef FASTCLOCK
 #define FASTCLOCK_FREQ 4
 #endif
@@ -71,14 +71,13 @@ int main(void) {
 		printf ("No system clock available\n");
 	}
 	printf("\n NIOSII start");
+	LED_bits = 0b000000000;
+	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
 	for(;;)
 	{
 		// reset the leds states at each loop
-		LED_bits = 0b000000000;
-		IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
 		get_key();
 		get_switch();
-		
 
 		if(SW_value & 0b0000000001) // sw 0
 		{
@@ -114,10 +113,8 @@ int main(void) {
 		}
 
 		select_melody = (SW_value >> 8) & 0b00000011;
-		printf("\n select_melody = %d", select_melody);
 		
-
-		for (size_t delay = 20000; delay != 0; --delay); // delay loop
+		delay(200);
 	}
     return 0;
 }
@@ -173,13 +170,21 @@ alt_u32 internal_alarm_callback (void* context)
  */
 alt_u32 user_alarm_callback (void* context)
 {
-	user_alarm_flag = 1;
+	
 	if (user_alarm_en)
 	{
 		set_user_timer((alt_u16)melody_freq/2);
+		printf("\n in Hp alarm");
+		user_alarm_flag = 1;
 		return context;
 	}
-	return 0;
+	else
+	{
+		printf("\n in delay alarm");
+		user_alarm_flag = 2;
+		return 0;
+	}
+	
 }
 
 /**
@@ -231,19 +236,22 @@ alt_u8 set_alarm_time(void)
 			break;
 
 		case KEY_0:
-			alarm_time = alarm_time - 60; // add 1 hour
-
-		case KEY_0_1:
-			alarm_time = alarm_time + 3600; // add 1 minute
+			alarm_time = alarm_time + 60; // add 1 hour
+			break;
 
 		case KEY_1:
-			alarm_time = alarm_time + 60; // remove 1 minute
+			alarm_time = alarm_time + 3600; // add 1 minute
+			break;
+
+		case KEY_0_1:
+			alarm_time = alarm_time - 60; // remove 1 minute
+			break;
 
 		default:
 			break;
 		}
 		printf("\nalarm_time = %d", alarm_time);
-		delay(200000);
+		delay(300); //debouncing
 		if(alarm_time >= 86400)
 		{
 			alarm_time = 0;
@@ -272,19 +280,22 @@ alt_u8 set_internal_time(void)
 			break;
 
 		case KEY_0:
-			internal_time = internal_time - 60; // add 1 hour
-
-		case KEY_0_1:
-			internal_time = internal_time + 3600; // add 1 minute
+			internal_time = internal_time + 60; // add 1 hour
+			break;
 
 		case KEY_1:
-			internal_time = internal_time + 60; // remove 1 minute
+			internal_time = internal_time + 3600; // add 1 minute
+			break;
+
+		case KEY_0_1:
+			internal_time = internal_time - 60; // remove 1 minute
+			break;
 
 		default:
 			break;
 		}
 		printf("\n internal_time = %d", internal_time);
-		delay(200000);
+		delay(300); //debouncing
 		if(internal_time >= 86400)
 		{
 			internal_time = 0;
@@ -303,13 +314,15 @@ alt_u8 activate_alarm(void)
 	if (alarm_time == 0)
 	{
 		return ERR_ALARM_TIME_NOT_SET;
+		printf("\n ERR_ALARM_TIME_NOT_SET");
 	}
 	if (alarm_state)
 	{
 		return ERR_ALARM_ALREADY_SET;
+		printf("\n ERR_ALARM_ALREADY_SET");
 	}
 	alarm_state = 1;
-	LED_bits = 0b000000001;
+	LED_bits = 0b0000000111;
 	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
 	return 0;
 }
@@ -328,6 +341,7 @@ alt_u8 deactivate_alarm(void)
 	alarm_state = 0;
 	LED_bits = 0b000000000;
 	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
+	printf("alarm_deactivated");
 	return 0;
 }
 
@@ -336,7 +350,7 @@ alt_u8 deactivate_alarm(void)
  */
 alt_u8 launch_alarm(void)
 {
-	LED_bits = 0b100000000;
+	LED_bits = 0b1110000000;
 	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
 	
 
@@ -358,9 +372,11 @@ alt_u8 launch_alarm(void)
 	default:
 		break;
 	}
+
+	LED_bits = 0b000000000;
+	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
 	return 0;
 }
-
 
 /**
  * @brief display the internal time on the 6 7seg displays
@@ -508,11 +524,10 @@ alt_u8 update_display(alt_u32 time, alt_u8 format)
 alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count)
 {
     printf("\nHP_out");
-	alt_u32 sec_test = 0;
-	printf("\n\n\n MELODY START \n\n\n");
 	alt_alarm_stop(&user_alarm);
 	user_alarm_en = 1;
-	alt_alarm_start(&user_alarm, alt_ticks_per_second()/MELODY_FREQ, user_alarm_callback, alt_ticks_per_second()/MELODY_FREQ);
+	printf("\n\n\n MELODY START \n\n\n");
+	alt_alarm_start(&user_alarm, alt_ticks_per_second()/MELODY_FREQ, user_alarm_callback, alt_ticks_per_second()/MELODY_FREQ); 
     for(size_t i = 0; i < melody_count; i++)
     {
 		melody_freq = melody[i];
@@ -525,6 +540,13 @@ alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count)
 				IOWR_ALTERA_AVALON_PIO_DATA(HP_ptr, hp_output_state);
 				IOWR_ALTERA_AVALON_TIMER_STATUS(TIMER_0_BASE, 0); //clear status register
 			}
+			// if(watchdog > 1000)
+			// {
+			// 	alt_alarm_stop(&user_alarm);
+			// 	printf("\n watchdog");
+			// 	alt_alarm_start(&user_alarm, alt_ticks_per_second()/MELODY_FREQ, user_alarm_callback, alt_ticks_per_second()/MELODY_FREQ);
+			// 	break;
+			// }
 		}
     }
 	user_alarm_en = 0;
@@ -571,7 +593,18 @@ alt_u8 set_user_timer(alt_16 frequency)
  */
 alt_u8 delay(alt_u16 delay_ms)
 {
-	for (size_t i = delay_ms; i != 0; --i); // delay loop
+	alt_u32 current_internal = internal_time;
+	alt_alarm_stop(&user_alarm);
+	user_alarm_flag = 0;
+	alt_alarm_start(&user_alarm, alt_ticks_per_second()/(1000/delay_ms), user_alarm_callback, 0);
+	while (!user_alarm_flag)
+	{
+		if (current_internal < (internal_time - 2))
+		{
+			alt_alarm_stop(&user_alarm);
+			break;
+		}
+	}
 	return 0;
 }
 
