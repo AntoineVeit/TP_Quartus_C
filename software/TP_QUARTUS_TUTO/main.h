@@ -118,14 +118,16 @@ alt_u8 user_alarm_flag = 0;
 alt_u16 melody_freq = 0;
 alt_u8 hp_output_state = 0;
 alt_u8 select_melody = 0;
+alt_u8 delay_alarm_flag = 0;
 
 /*** Function Prototypes ***/
+alt_u32 internal_alarm_callback (void* context);
+alt_u32 user_alarm_callback (void* context);
+alt_u32 delay_alarm_callback (void* context);
 
 alt_u8 get_key(void);
 alt_u8 get_switch(void);
 alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count);
-alt_u32 internal_alarm_callback (void* context);
-alt_u32 user_alarm_callback (void* context);
 alt_u8 display_current_time(void);
 alt_u8 time_2_hhmmss(alt_u32 time, alt_u8 *hour, alt_u8 *min, alt_u8 *sec);
 alt_u8 bin_2_bcd(alt_u8 bin, alt_u8 *decimal, alt_u8 *unit);

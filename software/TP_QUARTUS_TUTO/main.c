@@ -49,6 +49,8 @@
 
 static alt_alarm internal_alarm; 	// internal alarm to update the internal time every second and check if the alarm time is reached
 static alt_alarm user_alarm;		// user alarm for the sound generation
+static alt_alarm delay_alarm;		// user alarm for the sound generation
+
 
 
 
@@ -62,13 +64,13 @@ static alt_alarm user_alarm;		// user alarm for the sound generation
 int main(void) {
 	user_timer_setup();
 #ifdef FASTCLOCK
-	printf("WARINING FASTCLOCK IS ENABLED\n");
+	printf("\n WARINING FASTCLOCK IS ENABLED\n");
 	if (alt_alarm_start (&internal_alarm, alt_ticks_per_second()/FASTCLOCK_FREQ, internal_alarm_callback, NULL) < 0)
 #else
 	if (alt_alarm_start (&internal_alarm, alt_ticks_per_second(), internal_alarm_callback, NULL) < 0)
 #endif
 	{
-		printf ("No system clock available\n");
+		printf ("\n No system clock available\n");
 	}
 	printf("\n NIOSII start");
 	LED_bits = 0b000000000;
@@ -174,16 +176,17 @@ alt_u32 user_alarm_callback (void* context)
 	if (user_alarm_en)
 	{
 		set_user_timer((alt_u16)melody_freq/2);
-		printf("\n in Hp alarm");
 		user_alarm_flag = 1;
 		return context;
 	}
-	else
-	{
-		printf("\n in delay alarm");
-		user_alarm_flag = 2;
-		return 0;
-	}
+	return 0;
+}
+
+
+alt_u32 delay_alarm_callback (void* context)
+{
+	
+	delay_alarm_flag = 1;
 	
 }
 
@@ -251,7 +254,7 @@ alt_u8 set_alarm_time(void)
 			break;
 		}
 		printf("\nalarm_time = %d", alarm_time);
-		delay(300); //debouncing
+		delay(200); //debouncing
 		if(alarm_time >= 86400)
 		{
 			alarm_time = 0;
@@ -341,7 +344,7 @@ alt_u8 deactivate_alarm(void)
 	alarm_state = 0;
 	LED_bits = 0b000000000;
 	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
-	printf("alarm_deactivated");
+	//printf("\n alarm_deactivated");
 	return 0;
 }
 
@@ -540,15 +543,9 @@ alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count)
 				IOWR_ALTERA_AVALON_PIO_DATA(HP_ptr, hp_output_state);
 				IOWR_ALTERA_AVALON_TIMER_STATUS(TIMER_0_BASE, 0); //clear status register
 			}
-			// if(watchdog > 1000)
-			// {
-			// 	alt_alarm_stop(&user_alarm);
-			// 	printf("\n watchdog");
-			// 	alt_alarm_start(&user_alarm, alt_ticks_per_second()/MELODY_FREQ, user_alarm_callback, alt_ticks_per_second()/MELODY_FREQ);
-			// 	break;
-			// }
 		}
     }
+	alt_alarm_stop(&user_alarm);
 	user_alarm_en = 0;
     printf("\n\n\n MELODY STOP \n\n\n");
     return 0;
@@ -585,7 +582,6 @@ alt_u8 set_user_timer(alt_16 frequency)
 }
 
 
-
 /**
  * @brief simple blocking delay function
  * @param delay_ms the delay in milliseconds
@@ -593,18 +589,19 @@ alt_u8 set_user_timer(alt_16 frequency)
  */
 alt_u8 delay(alt_u16 delay_ms)
 {
-	alt_u32 current_internal = internal_time;
-	alt_alarm_stop(&user_alarm);
-	user_alarm_flag = 0;
-	alt_alarm_start(&user_alarm, alt_ticks_per_second()/(1000/delay_ms), user_alarm_callback, 0);
-	while (!user_alarm_flag)
-	{
-		if (current_internal < (internal_time - 2))
-		{
-			alt_alarm_stop(&user_alarm);
-			break;
-		}
-	}
+	for(size_t i = 0; i<200000;i++);
+	// alt_u32 current_internal = internal_time;
+	// alt_alarm_stop(&delay_alarm);
+	// delay_alarm_flag = 0;
+	// alt_alarm_start(&delay_alarm, alt_ticks_per_second()/(1000/delay_ms), delay_alarm_callback, 0);
+	// while (!delay_alarm_flag)
+	// {
+	// 	if (current_internal < (internal_time - 2))
+	// 	{
+	// 		alt_alarm_stop(&delay_alarm);
+	// 		break;
+	// 	}
+	// }
 	return 0;
 }
 
