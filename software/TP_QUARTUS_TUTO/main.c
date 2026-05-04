@@ -150,7 +150,7 @@ alt_u32 internal_alarm_callback (void* context)
 	{
 		if(internal_time == alarm_time)
 		{
-			launch_alarm();
+			launch_alarm_flag = 1;
 		}
 	}
 	if(internal_time >= 86400)
@@ -187,7 +187,7 @@ alt_u32 delay_alarm_callback (void* context)
 {
 	
 	delay_alarm_flag = 1;
-	
+	return 0;
 }
 
 /**
@@ -526,7 +526,7 @@ alt_u8 update_display(alt_u32 time, alt_u8 format)
  */
 alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count)
 {
-    printf("\nHP_out");
+	launch_alarm_flag = 0;
 	alt_alarm_stop(&user_alarm);
 	user_alarm_en = 1;
 	printf("\n\n\n MELODY START \n\n\n");
@@ -589,19 +589,23 @@ alt_u8 set_user_timer(alt_16 frequency)
  */
 alt_u8 delay(alt_u16 delay_ms)
 {
-	for(size_t i = 0; i<200000;i++);
-	// alt_u32 current_internal = internal_time;
-	// alt_alarm_stop(&delay_alarm);
-	// delay_alarm_flag = 0;
-	// alt_alarm_start(&delay_alarm, alt_ticks_per_second()/(1000/delay_ms), delay_alarm_callback, 0);
-	// while (!delay_alarm_flag)
-	// {
-	// 	if (current_internal < (internal_time - 2))
-	// 	{
-	// 		alt_alarm_stop(&delay_alarm);
-	// 		break;
-	// 	}
-	// }
+	alt_u32 current_internal = internal_time;
+	alt_alarm_stop(&delay_alarm);
+	delay_alarm_flag = 0;
+	alt_alarm_start(&delay_alarm, alt_ticks_per_second()/(1000/delay_ms), delay_alarm_callback, 0);
+	while (!delay_alarm_flag)
+	{
+		if (current_internal < (internal_time - 2))
+		{
+			alt_alarm_stop(&delay_alarm);
+			break;
+		}
+		if(launch_alarm_flag)
+		{
+			launch_alarm();
+			break;
+		}
+	}
 	return 0;
 }
 
