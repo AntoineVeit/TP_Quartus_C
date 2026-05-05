@@ -1,11 +1,14 @@
 /**
+ * 
  * @file main.c
  * @author Antoine.F
  * @brief this file contains the main function of the project, it initializes the internal alarm and enter in an infinite loop to check the state of the switches and push buttons
  * @version 0.1
  * @date 23/04/2026
- * 
  * @copyright Copyright (c) 2026
+ * 
+ * @mainpage main.c
+ * 
  * 
  */
 

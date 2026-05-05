@@ -1,8 +1,15 @@
 /**
+ * 
  * @file main.h
- * @brief This file contains the main function and the prototypes of the functions used in the main.c file
- * @author A. Frayard
+ * @author Antoine.F
+ * @brief this file contains function prototypes, macros and global variables definitions for the main.c file
+ * @version 0.1
+ * @date 05/05/2026
+ * @copyright Copyright (c) 2026
+ * 
+ * 
  */
+ 
 
 /**
  * @brief NIOS II header files
