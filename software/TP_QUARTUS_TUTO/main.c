@@ -41,7 +41,7 @@
 
 // #define DEBUG
 // #define INFO
-// #define FASTCLOCK
+#define FASTCLOCK
 #ifdef FASTCLOCK
 #define FASTCLOCK_FREQ 4
 #endif
@@ -124,47 +124,39 @@ int main(void) {
 			break;
 		 
 		case ERR_DELAY_WATCHDOG:
-			printf(("ERROR OCURED : ERROR_DELAY_WATCHDOG"));
+			printf(("\n ERROR OCURED : ERROR_DELAY_WATCHDOG"));
 			break;
 
 		case ERR_WRONG_MELODY:
-			printf(("ERROR OCURED : ERR_WRONG_MELODY"));
+			printf(("\n ERROR OCURED : ERR_WRONG_MELODY"));
 			break;
 
 		case ERR_ALARM_ALREADY_SET:
-			printf(("ERROR OCURED : ERR_ALARM_ALREADY_SET"));
+			printf(("\n ERROR OCURED : ERR_ALARM_ALREADY_SET"));
 			break;
 
 		case ERR_INVALID_KEY:
-			printf(("ERROR OCURED : ERR_INVALID_KEY"));
+			printf(("\n ERROR OCURED : ERR_INVALID_KEY"));
 			break;
 
 		case ERR_INVALID_SW:
-			printf(("ERROR OCURED : ERR_INVALID_SW"));
+			printf(("\n ERROR OCURED : ERR_INVALID_SW"));
 			break;
 			
 		case ERR_INVALID_TIME:
-			printf(("ERROR OCURED : ERR_INVALID_TIME"));
+			printf(("\n ERROR OCURED : ERR_INVALID_TIME"));
 			break;
 
 		case ERR_ALARM_TIME_NOT_SET:
-			printf(("ERROR OCURED : ERR_ALARM_TIME_NOT_SET"));
+			printf(("\n ERROR OCURED : ERR_ALARM_TIME_NOT_SET"));
 			break;
 
 		case ERR_ALARM_NOT_SET:
-			printf(("ERROR OCURED : ERR_ALARM_NOT_SET"));
-			break;
-
-		case ERR_ALARM_ALREADY_SET:
-			printf(("ERROR OCURED : ERR_ALARM_ALREADY_SET"));
+			printf(("\n ERROR OCURED : ERR_ALARM_NOT_SET"));
 			break;
 
 		case ERR_OVERFLOW:
-			printf(("ERROR OCURED : ERR_OVERFLOW"));
-			break;
-
-		case ERR_WRONG_MELODY:
-			printf(("ERROR OCURED : ERR_WRONG_MELODY"));
+			printf(("\n ERROR OCURED : ERR_OVERFLOW"));
 			break;
 
 		 default:
@@ -201,7 +193,7 @@ alt_u32 internal_alarm_callback (void* context)
 	}
 	if(alarm_state)
 	{
-		if(internal_time >= alarm_time)
+		if(internal_time == alarm_time)
 		{
 			launch_alarm_flag = 1;
 		}
@@ -676,8 +668,10 @@ alt_u8 delay(alt_u16 delay_ms)
 	alt_alarm_start(&delay_alarm, alt_ticks_per_second()/(1000/delay_ms), delay_alarm_callback, 0);
 	while (!delay_alarm_flag)
 	{
-		if (current_internal < (internal_time - 2))
+		if ((current_internal < (internal_time-2)) & (internal_time > 2))
 		{
+			printf("\n current_time = %d", current_internal);
+			printf("\n internal_time = %d", internal_time);
 			alt_alarm_stop(&delay_alarm);
 			return ERR_DELAY_WATCHDOG;
 		}
