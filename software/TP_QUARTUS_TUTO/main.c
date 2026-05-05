@@ -1,11 +1,14 @@
 /**
+ * 
  * @file main.c
  * @author Antoine.F
  * @brief this file contains the main function of the project, it initializes the internal alarm and enter in an infinite loop to check the state of the switches and push buttons
  * @version 0.1
  * @date 23/04/2026
- * 
  * @copyright Copyright (c) 2026
+ * 
+ * @mainpage main.c
+ * 
  * 
  */
 
@@ -37,22 +40,11 @@
  */
 
 // #define DEBUG
-//#define INFO
-#define FASTCLOCK
+// #define INFO
+// #define FASTCLOCK
 #ifdef FASTCLOCK
 #define FASTCLOCK_FREQ 4
 #endif
-
-
-
-
-
-static alt_alarm internal_alarm; 	// internal alarm to update the internal time every second and check if the alarm time is reached
-static alt_alarm user_alarm;		// user alarm for the sound generation
-static alt_alarm delay_alarm;		// user alarm for the sound generation
-
-
-
 
 
 
@@ -62,7 +54,9 @@ static alt_alarm delay_alarm;		// user alarm for the sound generation
  * @brief main function, initialize the internal alarm and enter in an infinite loop to check the state of the switches and push buttons
  */
 int main(void) {
-	user_timer_setup();
+	alt_u8 rc = ERR_OK;
+	rc = user_timer_setup();
+
 #ifdef FASTCLOCK
 	printf("\n WARINING FASTCLOCK IS ENABLED\n");
 	if (alt_alarm_start (&internal_alarm, alt_ticks_per_second()/FASTCLOCK_FREQ, internal_alarm_callback, NULL) < 0)
@@ -78,21 +72,21 @@ int main(void) {
 	for(;;)
 	{
 		// reset the leds states at each loop
-		get_key();
-		get_switch();
+		rc =get_key();
+		rc = get_switch();
 
 		if(SW_value & 0b0000000001) // sw 0
 		{
-			activate_alarm();
+			rc = activate_alarm();
 		}
 		else
 		{
-			deactivate_alarm();
+			rc = deactivate_alarm();
 		}
 		
 		if (SW_value & 0b0000000010) // sw 1
 		{
-			set_alarm_time();
+			rc = set_alarm_time();
 		}
 		else
 		{
@@ -102,7 +96,7 @@ int main(void) {
 		if (SW_value & 0b0000000100) // sw 2
 		{
 			internal_time_set = 1;
-			set_internal_time();
+			rc = set_internal_time();
 		}
 		else
 		{
@@ -116,10 +110,68 @@ int main(void) {
 
 		time_format = (SW_value >> 4) & 0b00000001;
 		select_melody = (SW_value >> 8) & 0b00000011;
-		
-		delay(200);
+		rc = delay(200);
+
+		/**
+		 * @brief error management
+		 * 
+		 */
+
+		switch (rc)
+		{
+		case ERR_LAUNCH_ALARM:
+			launch_alarm();
+			break;
+		 
+		case ERR_DELAY_WATCHDOG:
+			printf(("ERROR OCURED : ERROR_DELAY_WATCHDOG"));
+			break;
+
+		case ERR_WRONG_MELODY:
+			printf(("ERROR OCURED : ERR_WRONG_MELODY"));
+			break;
+
+		case ERR_ALARM_ALREADY_SET:
+			printf(("ERROR OCURED : ERR_ALARM_ALREADY_SET"));
+			break;
+
+		case ERR_INVALID_KEY:
+			printf(("ERROR OCURED : ERR_INVALID_KEY"));
+			break;
+
+		case ERR_INVALID_SW:
+			printf(("ERROR OCURED : ERR_INVALID_SW"));
+			break;
+			
+		case ERR_INVALID_TIME:
+			printf(("ERROR OCURED : ERR_INVALID_TIME"));
+			break;
+
+		case ERR_ALARM_TIME_NOT_SET:
+			printf(("ERROR OCURED : ERR_ALARM_TIME_NOT_SET"));
+			break;
+
+		case ERR_ALARM_NOT_SET:
+			printf(("ERROR OCURED : ERR_ALARM_NOT_SET"));
+			break;
+
+		case ERR_ALARM_ALREADY_SET:
+			printf(("ERROR OCURED : ERR_ALARM_ALREADY_SET"));
+			break;
+
+		case ERR_OVERFLOW:
+			printf(("ERROR OCURED : ERR_OVERFLOW"));
+			break;
+
+		case ERR_WRONG_MELODY:
+			printf(("ERROR OCURED : ERR_WRONG_MELODY"));
+			break;
+
+		 default:
+			break;
+		 }
 	}
-    return 0;
+    return ERR_OK;
 }
 
 
@@ -130,8 +182,8 @@ int main(void) {
  * @brief main alarm callback function, called every second by the internal alarm, 
  * @brief updates the internal time and check if the alarm time is reached
  * 
- * @param context the context for the callback
- * @return alt_u32 
+ * @param context NULL pointer
+ * @return alt_u32 the alarm period (in ticks) for the next alarm interruption
  */
 alt_u32 internal_alarm_callback (void* context)
 {
@@ -145,11 +197,11 @@ alt_u32 internal_alarm_callback (void* context)
 	}
 	else
 	{
-		display_current_time();
+		update_display(internal_time, time_format);
 	}
 	if(alarm_state)
 	{
-		if(internal_time == alarm_time)
+		if(internal_time >= alarm_time)
 		{
 			launch_alarm_flag = 1;
 		}
@@ -166,35 +218,41 @@ alt_u32 internal_alarm_callback (void* context)
 }
 
 /**
- * @brief multi-purpose alarm callback function
+ * @brief hp alarm callback function, called by the hp_alarm to generate the sound, 
+ * @brief it set the "hp_alarm_flag" to 1 to indicate that the alarm is ready to generate the sound
  * 
- * @param context the context for the callback
- * @return alt_u32 
+ * @param context the period for the next alarm interruption
+ * @return alt_u32 the alarm period (in ticks) for the next alarm interruption
  */
-alt_u32 user_alarm_callback (void* context)
+alt_u32 hp_alarm_callback (void* context)
 {
 	
-	if (user_alarm_en)
+	if (hp_alarm_en)
 	{
 		set_user_timer((alt_u16)melody_freq/2);
-		user_alarm_flag = 1;
+		hp_alarm_flag = 1;
 		return context;
 	}
-	return 0;
+	return ERR_OK;
 }
 
-
+/**
+ * @brief alarm callback function for the blocking delay, it set the "delay_alarm_flag" to 1 to indicate that the delay is over
+ * 
+ * @param context NULL pointer
+ * @return alt_u32 return 0;
+ */
 alt_u32 delay_alarm_callback (void* context)
 {
 	
 	delay_alarm_flag = 1;
-	return 0;
+	return ERR_OK;
 }
 
 /**
  * @brief store the switch register value in "SW_value"
  * 
- * @return alt_u8 
+ * @return alt_u8 return code (ERR_OK)
  */
 alt_u8 get_switch(void)
 {
@@ -202,13 +260,13 @@ alt_u8 get_switch(void)
 #ifdef DEBUG
 	printf("\n switches -> %x", SW_value);
 #endif
-    return 0;
+    return ERR_OK;
 }
 
 /**
  * @brief store the push button (key) register value in "KEY_value"
  * 
- * @return alt_u8 
+ * @return alt_u8 return code (ERR_OK)
  */
 alt_u8 get_key(void)
 {
@@ -216,19 +274,20 @@ alt_u8 get_key(void)
 #ifdef DEBUG
 	printf("\n switches -> %d", KEY_value);
 #endif
-    return 0;
+    return ERR_OK;
 }
 
 /**
  * @brief enter blocking loop to display the alarm time and allow the user to change it using the push buttons
  * 
- * @return alt_u8 
+ * @return alt_u8 return code (ERR_OK / ERR_LAUNCH_ALARM / ERR_DELAY_WATCHDOG)
  */
 alt_u8 set_alarm_time(void)
 {
 #ifdef INFO
 	printf("\n alarm_time = %d", alarm_time);
 #endif
+	alt_u8 rc = ERR_OK;
 	alarm_set = 1;
 	while(SW_value & 0b0000000010)
 	{
@@ -241,40 +300,45 @@ alt_u8 set_alarm_time(void)
 
 		case KEY_0:
 			alarm_time = alarm_time + 60; // add 1 hour
-			delay(300); //debouncing
+			rc = delay(300); //debouncing
 			break;
 
 		case KEY_1:
 			alarm_time = alarm_time + 3600; // add 1 minute
-			delay(300); //debouncing
+			rc = delay(300); //debouncing
 			break;
 
 		case KEY_0_1:
 			alarm_time = alarm_time - 60; // remove 1 minute
-			delay(300); //debouncing
+			rc = delay(300); //debouncing
 			break;
 
 		default:
 			break;
 		}
+		if(rc != ERR_OK)
+			{
+				return rc;
+			}
 		if(alarm_time >= 86400)
 		{
 			alarm_time = 0;
 		}
 	}
-	return 0;
+	return rc;
 }
 
 /**
  * @brief allow the user to set the internal time using the 2 push button the the board
  * 
- * @return alt_u8 
+ * @return alt_u8 return code (ERR_OK / ERR_LAUNCH_ALARM / ERR_DELAY_WATCHDOG)
  */
 alt_u8 set_internal_time(void)
 {
 #ifdef INFO
 	printf("\n internal_time = %d", internal_time);
 #endif
+	alt_u8 rc = ERR_OK;
 	while(SW_value & 0b0000000100)
 	{
 		get_switch();
@@ -286,17 +350,29 @@ alt_u8 set_internal_time(void)
 
 		case KEY_0:
 			internal_time = internal_time + 60; // add 1 hour
-			delay(300); //debouncing
+			rc = delay(300); //debouncing
+			if(rc != ERR_OK)
+			{
+				return rc;
+			}
 			break;
 
 		case KEY_1:
 			internal_time = internal_time + 3600; // add 1 minute
-			delay(300); //debouncing
+			rc = delay(300); //debouncing
+			if(rc != ERR_OK)
+			{
+				return rc;
+			}
 			break;
 
 		case KEY_0_1:
 			internal_time = internal_time - 60; // remove 1 minute
-			delay(300); //debouncing
+			rc = delay(300); //debouncing
+			if(rc != ERR_OK)
+			{
+				return rc;
+			}
 			break;
 
 		default:
@@ -307,36 +383,34 @@ alt_u8 set_internal_time(void)
 			internal_time = 0;
 		}
 	}
-	return 0;
+	return rc;
 }
 
 /**
  * @brief turn on the "alarm_state" flag and the alarm LED light
  * 
- * @return alt_u8 
+ * @return alt_u8 return code (ERR_ALARM_TIME_NOT_SET / ERR_ALARM_ALREADY_SET / ERR_OK)
  */
 alt_u8 activate_alarm(void)
 {
 	if (alarm_time == 0)
 	{
 		return ERR_ALARM_TIME_NOT_SET;
-		printf("\n ERR_ALARM_TIME_NOT_SET");
 	}
 	if (alarm_state)
 	{
 		return ERR_ALARM_ALREADY_SET;
-		printf("\n ERR_ALARM_ALREADY_SET");
 	}
 	alarm_state = 1;
 	LED_bits = 0b0000000111;
 	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
-	return 0;
+	return ERR_OK;
 }
 
 /**
  * @brief turn off the "alarm_state" flag and the alarm LED light
  * 
- * @return alt_u8 
+ * @return alt_u8 return code (ERR_ALARM_NOT_SET / ERR_OK)
  */
 alt_u8 deactivate_alarm(void)
 {
@@ -348,14 +422,17 @@ alt_u8 deactivate_alarm(void)
 	LED_bits = 0b000000000;
 	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
 	//printf("\n alarm_deactivated");
-	return 0;
+	return ERR_OK;
 }
 
 /**
- * @brief output the choosen melodie and blink an led
+ * @brief launch the alarm and play the selected melody
+ * 
+ * @return alt_u8 return code (ERR_OK / ERR_WRONG_MELODY)
  */
 alt_u8 launch_alarm(void)
 {
+	alt_u8 rc = ERR_OK;
 	LED_bits = 0b1110000000;
 	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
 	
@@ -363,46 +440,28 @@ alt_u8 launch_alarm(void)
 	switch (select_melody)
 	{
 	case 0:
-		hp_out(tetris, sizeof(tetris)/sizeof(tetris[0]));
+		rc = hp_out(tetris, sizeof(tetris)/sizeof(tetris[0]));
 		break;
 	case 1:
-		hp_out(mario, sizeof(mario)/sizeof(mario[0]));
+		rc = hp_out(mario, sizeof(mario)/sizeof(mario[0]));
 		break;
 	case 2:
-		hp_out(Zelda, sizeof(Zelda)/sizeof(Zelda[0]));
+		rc = hp_out(Zelda, sizeof(Zelda)/sizeof(Zelda[0]));
 		break;
 	case 3:
-		hp_out(base_melody, sizeof(base_melody)/sizeof(base_melody[0]));
+		rc = hp_out(base_melody, sizeof(base_melody)/sizeof(base_melody[0]));
 		break;
-	
 	default:
+		hp_out(base_melody, sizeof(base_melody)/sizeof(base_melody[0]));
+		rc = ERR_WRONG_MELODY;
 		break;
 	}
 
 	LED_bits = 0b000000000;
 	IOWR_ALTERA_AVALON_PIO_DATA(LED_ptr, LED_bits);
-	return 0;
+	return rc;
 }
 
-/**
- * @brief display the internal time on the 6 7seg displays
- * 
- * @return alt_u8 
- */
-alt_u8 display_current_time(void)
-{
-	update_display(internal_time, time_format);
-#ifdef INFO
-	printf("\n interal time = %d", (int)internal_time);
-	printf("\n%d - %d - %d", (int)display.hours, (int)display.minutes, (int)display.seconds);
-#endif
-
-
-#ifdef DEBUG
-	printf("\n%d%d", display.bcd_hou_1, display.bcd_hou_0);
-#endif
-	return 0;
-}
 
 /**
  * @brief convert 32bits int in formated time structure
@@ -422,7 +481,7 @@ alt_u8 time_2_hhmmss(alt_u32 time, alt_u8 *hour, alt_u8 *min, alt_u8 *sec)
 	printf("\ntime_2_hhmmss");
 	printf("\ntime = %d", time);
 #endif
-	return 0;
+	return ERR_OK;
 }
 
 
@@ -447,16 +506,16 @@ alt_u8 bin_2_bcd(alt_u8 bin, alt_u8 *decimal, alt_u8 *unit)
 	printf("\ndec 4 bcd = %d", *decimal);
 	printf("\nunit 4 bcd = %d", *unit);
 #endif
-	return 0;
+	return ERR_OK;
 }
 
 
 /**
  * @brief transforme the 32bits value to time format and diplay it on the 6 7seg displays
  * 
- * @param time 
- * @param format 
- * @return alt_u8 
+ * @param time 32bits time in seconds
+ * @param format time format (0 for 24h, 1 for 12h)
+ * @return alt_u8 return code (ERR_OK)
  */
 alt_u8 update_display(alt_u32 time, alt_u8 format)
 {
@@ -520,7 +579,7 @@ alt_u8 update_display(alt_u32 time, alt_u8 format)
 		HEX_bits = HEX_bits + convertion_array[abs(display.bcd_sec_0)];
 		IOWR_ALTERA_AVALON_PIO_DATA(HEX3_HEX0_ptr, HEX_bits);
 	}
-	return 0;
+	return ERR_OK;
 }
 
 /**
@@ -528,15 +587,15 @@ alt_u8 update_display(alt_u32 time, alt_u8 format)
  * @brief the sound is generated by a square wave with a frequency corresponding to the note to be played
  * @brief frequency is generated by a blocking delay
  * 
- * @return alt_u8 
+ * @return alt_u8 return code (ERR_OK)
  */
 alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count)
 {
 	launch_alarm_flag = 0;
-	alt_alarm_stop(&user_alarm);
-	user_alarm_en = 1;
+	alt_alarm_stop(&hp_alarm);
+	hp_alarm_en = 1;
 	printf("\n\n\n MELODY START \n\n\n");
-	alt_alarm_start(&user_alarm, alt_ticks_per_second()/MELODY_FREQ, user_alarm_callback, alt_ticks_per_second()/MELODY_FREQ); 
+	alt_alarm_start(&hp_alarm, alt_ticks_per_second()/MELODY_FREQ, hp_alarm_callback, alt_ticks_per_second()/MELODY_FREQ); 
     for(size_t i = 0; i < melody_count; i++)
     {
 		get_key();
@@ -545,8 +604,8 @@ alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count)
 			break;
 		}
 		melody_freq = melody[i];
-		user_alarm_flag = 0; // reset the user_alarm flag
-		while(!user_alarm_flag)
+		hp_alarm_flag = 0; // reset the hp_alarm flag
+		while(!hp_alarm_flag)
 		{
 			if (IORD_ALTERA_AVALON_TIMER_STATUS(TIMER_0_BASE) & 0b00000001)
 			{
@@ -556,12 +615,17 @@ alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count)
 			}
 		}
     }
-	alt_alarm_stop(&user_alarm);
-	user_alarm_en = 0;
+	alt_alarm_stop(&hp_alarm);
+	hp_alarm_en = 0;
     printf("\n\n\n MELODY STOP \n\n\n");
-    return 0;
+    return ERR_OK;
 }
 
+/**
+ * @brief initialize the user timer with default values
+ * 
+ * @return alt_u8 return code (ERR_OK)
+ */
 alt_u8 user_timer_setup(void)
 {
 	printf("\n timer status %d", IORD_ALTERA_AVALON_TIMER_STATUS(TIMER_0_BASE));
@@ -579,9 +643,15 @@ alt_u8 user_timer_setup(void)
 	IOWR_ALTERA_AVALON_TIMER_CONTROL(TIMER_0_BASE, 0b00000110);
 	printf("\n timer control %d", IORD_ALTERA_AVALON_TIMER_CONTROL(TIMER_0_BASE));
 	printf("\n timer status %d", IORD_ALTERA_AVALON_TIMER_STATUS(TIMER_0_BASE));
-	return 0;
+	return ERR_OK;
 }
 
+/**
+ * @brief Set the user timer period to generate the desired frequency
+ * 
+ * @param frequency the frequency of the square wave to be generated
+ * @return alt_u8 return code (ERR_OK)
+ */
 alt_u8 set_user_timer(alt_16 frequency)
 {
 	alt_u32 period = 50000000/frequency;
@@ -589,14 +659,14 @@ alt_u8 set_user_timer(alt_16 frequency)
 	IOWR_ALTERA_AVALON_TIMER_PERIODL(TIMER_0_BASE, (alt_u16) (period & 0x0000ffff));
 	IOWR_ALTERA_AVALON_TIMER_PERIODH(TIMER_0_BASE, (alt_u16) (period>>16 & 0x0000ffff));
 	IOWR_ALTERA_AVALON_TIMER_CONTROL(TIMER_0_BASE, 0b00000110);
-	return 0;
+	return ERR_OK;
 }
 
 
 /**
  * @brief simple blocking delay function
  * @param delay_ms the delay in milliseconds
- * @return 0 when the delay is over
+ * @return alt_u8 return code (ERR_OK / ERR_DELAY_WATCHDOG / ERR_LAUNCH_ALARM)
  */
 alt_u8 delay(alt_u16 delay_ms)
 {
@@ -609,14 +679,14 @@ alt_u8 delay(alt_u16 delay_ms)
 		if (current_internal < (internal_time - 2))
 		{
 			alt_alarm_stop(&delay_alarm);
-			break;
+			return ERR_DELAY_WATCHDOG;
 		}
 		if(launch_alarm_flag)
 		{
-			launch_alarm();
-			break;
+			//launch_alarm();
+			return ERR_LAUNCH_ALARM;
 		}
 	}
-	return 0;
+	return ERR_OK;
 }
 

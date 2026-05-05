@@ -1,8 +1,15 @@
 /**
+ * 
  * @file main.h
- * @brief This file contains the main function and the prototypes of the functions used in the main.c file
- * @author A. Frayard
+ * @author Antoine.F
+ * @brief this file contains function prototypes, macros and global variables definitions for the main.c file
+ * @version 0.1
+ * @date 05/05/2026
+ * @copyright Copyright (c) 2026
+ * 
+ * 
  */
+ 
 
 /**
  * @brief NIOS II header files
@@ -61,14 +68,20 @@ alt_u8 convertion_array[10] = {HEX_0, HEX_1, HEX_2, HEX_3, HEX_4, HEX_5, HEX_6, 
 /**
  * @brief Error codes
  */
-#define ERR_OK 0
-#define ERR_INVALID_KEY 1
-#define ERR_INVALID_SW 2
-#define ERR_INVALID_TIME 3
-#define ERR_ALARM_TIME_NOT_SET 4
-#define ERR_ALARM_NOT_SET 5
-#define ERR_ALARM_ALREADY_SET 6
-#define ERR_OVERFLOW 7
+enum error_codes
+{
+	ERR_OK = 0,
+	ERR_INVALID_KEY,
+	ERR_INVALID_SW,
+	ERR_INVALID_TIME,
+	ERR_ALARM_TIME_NOT_SET,
+	ERR_ALARM_NOT_SET,
+	ERR_ALARM_ALREADY_SET,
+	ERR_OVERFLOW,
+	ERR_LAUNCH_ALARM,
+	ERR_DELAY_WATCHDOG,
+	ERR_WRONG_MELODY,
+};
 
 
 /**
@@ -81,6 +94,15 @@ volatile int * HEX3_HEX0_ptr = (int *)BCD3_BCD0_BASE; // HEX3_HEX0 address
 volatile int * HEX5_HEX4_ptr = (int *)BCD5_BCD4_BASE; // HEX3_HEX0 address
 volatile int * HP_ptr = (int *)HP_OUT_BASE; // HEX3_HEX0 address
 
+
+
+/**
+ * @brief NIOS II Alarms
+ * 
+ */
+static alt_alarm internal_alarm; 	// internal alarm to update the internal time every second and check if the alarm time is reached
+static alt_alarm hp_alarm;			// alarm for the sound generation
+static alt_alarm delay_alarm;		// alarm for accurate blocking delay
 
 
 /**
@@ -104,33 +126,43 @@ typedef struct display_img_s
 display_img display;
 
 
+/**
+ * @brief variables definitions
+ * 
+ */
 alt_u32 internal_time = 0;      // time register incremented every second
 alt_u32 alarm_time = 0;         // time register to set the alarm
-alt_u8 alarm_state = 0;         // flag to indicate if the alarm is activated
-alt_u8 alarm_set = 0;           // flag to display the alarm time on the 6 7seg displays
-alt_u8 internal_time_set = 0;   // flag to display the modified time on the 6 7seg displays
 alt_u32 HEX_bits = 0x0;         // pattern for HEX displays
 alt_u32 LED_bits = 0x0;         // pattern for LED lights
 alt_u16 SW_value = 0;           // variable to store the value of the SW slider switches
 alt_u8 KEY_value = 0;           // variable to store the value of the push button keys
-alt_u8 user_alarm_en = 0;
-alt_u8 user_alarm_flag = 0;
-alt_u16 melody_freq = 0;
-alt_u8 hp_output_state = 0;
-alt_u8 select_melody = 0;
-alt_u8 delay_alarm_flag = 0;
-alt_u8 launch_alarm_flag = 0;
-alt_u8 time_format = FORMAT_24H;
+alt_u16 melody_freq = 0;		// variable to store the frequency of the note to be played
+alt_u8 hp_output_state = 0;		// variable to store the state of the HP output (0 or 1) to generate a square wave
+alt_u8 select_melody = 0;		// variable to store the selected melody
+
+
+/**
+ * @brief flag definitions
+ * 
+ */
+alt_u8 delay_alarm_flag = 0;		// flag to indicate that the blocking delay is over
+alt_u8 launch_alarm_flag = 0;		// flag to indicate that the alarm time is reached and the alarm should be launched
+alt_u8 hp_alarm_en = 0;				// flag to indicate that the hp_alarm is enabled to generate the sound (used to stop the hp_alarm when the melody is over or when a key is pressed to stop the alarm)
+alt_u8 hp_alarm_flag = 0;			// flag to indicate that the hp_alarm callback function is called and the sound should be generated
+alt_u8 alarm_state = 0;         	// flag to indicate if the alarm is activated
+alt_u8 alarm_set = 0;           	// flag to display the alarm time on the 6 7seg displays
+alt_u8 internal_time_set = 0;   	// flag to display the modified time on the 6 7seg displays
+alt_u8 time_format = FORMAT_24H;	// flag to store the time format
+
 
 /*** Function Prototypes ***/
 alt_u32 internal_alarm_callback (void* context);
-alt_u32 user_alarm_callback (void* context);
+alt_u32 hp_alarm_callback (void* context);
 alt_u32 delay_alarm_callback (void* context);
 
 alt_u8 get_key(void);
 alt_u8 get_switch(void);
 alt_u8 hp_out(alt_u16 *melody, alt_u16 melody_count);
-alt_u8 display_current_time(void);
 alt_u8 time_2_hhmmss(alt_u32 time, alt_u8 *hour, alt_u8 *min, alt_u8 *sec);
 alt_u8 bin_2_bcd(alt_u8 bin, alt_u8 *decimal, alt_u8 *unit);
 alt_u8 update_display(alt_u32 time, alt_u8 format);
